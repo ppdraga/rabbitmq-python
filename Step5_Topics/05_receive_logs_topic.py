@@ -4,24 +4,25 @@ import pika, sys, os
 def main():
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost', 25672))
     channel = connection.channel()
-    channel.exchange_declare(exchange='direct_logs', exchange_type='direct')
+    channel.exchange_declare(exchange='topic_logs', exchange_type='topic')
 
     result = channel.queue_declare(queue='', exclusive=True) # random named queue
     queue_name = result.method.queue
 
-    severities = sys.argv[1:]
-    if not severities:
-        sys.stderr.write("Usage: %s [info] [warning] [error]\n" % sys.argv[0])
+    binding_keys = sys.argv[1:]
+    print('binding_keys', binding_keys)
+    if not binding_keys:
+        sys.stderr.write("Usage: %s [binding_keys]...\n" % sys.argv[0])
         sys.exit(1)
 
-    for severity in severities:
+    for binding_key in binding_keys:
         channel.queue_bind(
-            exchange='direct_logs', queue=queue_name, routing_key=severity)
+            exchange='topic_logs', queue=queue_name, routing_key=binding_key)
 
     print(' [*] Waiting for messages. To exit press CTRL+C')
     
     def callback(ch, method, properties, body):
-        print(" [x] Received %r" % body)
+        print(" [x] %r:%r" % (method.routing_key, body))
 
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue=queue_name,
